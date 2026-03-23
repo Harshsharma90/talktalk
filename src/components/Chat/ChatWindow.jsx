@@ -53,14 +53,22 @@ const typingTimeoutRef = useRef(null);
   return unsub;
 }, [chatId, contact?.uid]);
 
- const handleSend = async () => {
+const handleSend = async () => {
   const trimmed = text.trim();
   if (!trimmed || !chatId) return;
   setText("");
   setSending(true);
   setTyping(chatId, user.uid, false);
   if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-}
+  try {
+    await sendMessage(chatId, user.uid, trimmed);
+  } catch (e) {
+    console.error("Send message error:", e);
+  } finally {
+    setSending(false);
+    inputRef.current?.focus();
+  }
+};
 
 const handleKey = (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -194,7 +202,7 @@ const handleKey = (e) => {
   </div>
 )}
 <div ref={bottomRef} />
-        <div ref={bottomRef} />
+       
       </div>
 
       {/* Input */}
