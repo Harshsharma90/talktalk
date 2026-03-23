@@ -34,19 +34,18 @@ export async function sendMessage(chatId, senderId, text) {
   });
 }
 export async function findUserByPhone(phone) {
-  const normalized = phone.startsWith("+") ? phone : `+91${phone}`;
+  const normalized = phone.startsWith("+") ? phone.trim() : `+91${phone.trim()}`;
   const q = query(collection(db, "users"), where("phoneNumber", "==", normalized));
   const snap = await getDocs(q);
   if (snap.empty) return null;
-  return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  return { id: snap.docs[0].id, uid: snap.docs[0].id, ...snap.docs[0].data() };
 }
 export async function findUserByEmail(email) {
   const trimmed = email.trim().toLowerCase();
   const q = query(collection(db, "users"), where("email", "==", trimmed));
   const snap = await getDocs(q);
-  console.log("Searching email:", trimmed, "Results:", snap.size);
   if (snap.empty) return null;
-  return { id: snap.docs[0].id, ...snap.docs[0].data() };
+  return { id: snap.docs[0].id, uid: snap.docs[0].id, ...snap.docs[0].data() };
 }
 export async function addContact(myUid, theirUid) {
   await setDoc(doc(db, "users", myUid, "contacts", theirUid), { uid: theirUid, addedAt: serverTimestamp() });

@@ -109,15 +109,23 @@ const handleSelectContact = async (contact) => {
   if (chatArea) chatArea.classList.add("mobile-open");
 };
 
-  const handleContactAdded = (newContact, chatId) => {
-    const contactWithChat = { ...newContact, id: newContact.uid, chatId, lastMessage: null };
-    setContacts((prev) => {
-      const exists = prev.find((c) => c.id === newContact.uid);
-      if (exists) return prev;
-      return [contactWithChat, ...prev];
-    });
-    handleSelectContact(contactWithChat);
+const handleContactAdded = (newContact, chatId) => {
+  const contactWithChat = { 
+    ...newContact, 
+    id: newContact.uid || newContact.id, 
+    chatId, 
+    lastMessage: null 
   };
+  setContacts((prev) => {
+    const exists = prev.find((c) => c.id === contactWithChat.id);
+    if (exists) return prev;
+    return [contactWithChat, ...prev];
+  });
+  setActiveContact(contactWithChat);
+  setActiveChatId(chatId);
+  const chatArea = document.querySelector(".chat-area");
+  if (chatArea) chatArea.classList.add("mobile-open");
+};
 
  
 

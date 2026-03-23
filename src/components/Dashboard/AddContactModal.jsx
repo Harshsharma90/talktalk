@@ -43,9 +43,11 @@ const handleAdd = async () => {
   if (!result) return;
   setAdding(true);
   try {
-    const chatId = await addContact(user.uid, result.uid);
+    const theirUid = result.uid || result.id;
+    const chatId = await addContact(user.uid, theirUid);
+    const contactData = { ...result, uid: theirUid, id: theirUid };
     toast.success(`${result.displayName} added!`);
-    onAdded(result, chatId);
+    onAdded(contactData, chatId);
     onClose();
   } catch (e) {
     toast.error("Failed to add contact");
