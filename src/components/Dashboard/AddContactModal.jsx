@@ -1,6 +1,6 @@
 // src/components/Dashboard/AddContactModal.jsx
 import { useState } from "react";
-import { findUserByPhone, findUserByEmail, sendContactRequest, sendSystemMessage } from "../../utils/firestore";
+import { findUserByPhone, findUserByEmail, addContact,sendSystemMessage } from "../../utils/firestore";
 import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -39,15 +39,16 @@ export default function AddContactModal({ onClose, onAdded }) {
     }
   };
 
- const handleAdd = async () => {
+const handleAdd = async () => {
   if (!result) return;
   setAdding(true);
   try {
-    await sendContactRequest(user.uid, result.uid);
-    toast.success(`Request sent to ${result.displayName}!`);
+    const chatId = await addContact(user.uid, result.uid);
+    toast.success(`${result.displayName} added!`);
+    onAdded(result, chatId);
     onClose();
   } catch (e) {
-    toast.error("Failed to send request");
+    toast.error("Failed to add contact");
   } finally {
     setAdding(false);
   }

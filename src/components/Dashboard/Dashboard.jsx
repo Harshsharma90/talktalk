@@ -2,15 +2,12 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { signOut } from "firebase/auth";
-import { getUserContacts, setUserOnline, getOrCreateChat, acceptContactRequest, declineContactRequest } from "../../utils/firestore";
-import {
-  collection, onSnapshot, doc, getDoc,
-} from "firebase/firestore";
+import { setUserOnline } from "../../utils/firestore";
+import { collection, onSnapshot, doc, getDoc,} from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import { format, isToday } from "date-fns";
 import ChatWindow from "../Chat/ChatWindow";
 import AddContactModal from "./AddContactModal";
-import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
@@ -21,21 +18,8 @@ export default function Dashboard() {
   const [showProfile, setShowProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState([]);
-
-  const loadContacts = async () => {
-    try {
-      const list = await getUserContacts(user.uid);
-      setContacts(list);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+ 
   useEffect(() => {
-    loadContacts();
     setUserOnline(user.uid, true);
     const handleVisibility = () => setUserOnline(user.uid, !document.hidden);
     document.addEventListener("visibilitychange", handleVisibility);
@@ -81,40 +65,41 @@ export default function Dashboard() {
     return () => unsubs.forEach((u) => u());
   }, [contacts.length]);
 
-
-  useEffect(() => {
-    if (!user?.uid) return;
-    let unsub;
-    const setupListener = () => {
-      unsub = onSnapshot(
-        collection(db, "users", user.uid, "requests"),
-        async (snap) => {
-          console.log("Requests updated:", snap.size);
-          const reqs = [];
-          for (const d of snap.docs) {
-            try {
-              const fromSnap = await getDoc(doc(db, "users", d.data().fromUid));
-              if (fromSnap.exists()) {
-                reqs.push({ id: d.id, ...d.data(), profile: fromSnap.data() });
-              }
-            } catch (e) {
-              console.warn("Could not fetch request sender profile:", e);
-            }
-          }
-          setRequests(reqs);
-        },
-        (error) => {
-          console.error("Requests listener error:", error);
-          setTimeout(setupListener, 3000);
+  // Listen for new contacts added by others in real time
+useEffect(() => {
+  if (!user?.uid) return;
+  const unsub = onSnapshot(
+    collection(db, "users", user.uid, "contacts"),
+    async (snap) => {
+      const updatedContacts = [];
+      for (const d of snap.docs) {
+        const userSnap = await getDoc(doc(db, "users", d.id));
+        if (userSnap.exists()) {
+          const chatId = [user.uid, d.id].sort().join("_");
+          const chatSnap = await getDoc(doc(db, "chats", chatId));
+          updatedContacts.push({
+            ...userSnap.data(),
+            id: d.id,
+            chatId,
+            lastMessage: chatSnap.exists() ? chatSnap.data().lastMessage : null,
+            lastMessageTime: chatSnap.exists() ? chatSnap.data().lastMessageTime : null,
+          });
         }
-      );
-    };
-    const timer = setTimeout(setupListener, 500);
-    return () => {
-      clearTimeout(timer);
-      unsub?.();
-    };
-  }, [user?.uid]);
+      }
+     updatedContacts.sort((a, b) => {
+        const aTime = a.lastMessageTime?.toMillis?.() || 0;
+        const bTime = b.lastMessageTime?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+      setContacts(updatedContacts);
+      setLoading(false);
+    }
+  );
+  return unsub;
+}, [user?.uid]);
+
+
+ 
 
 const handleSelectContact = async (contact) => {
   setActiveContact(contact);
@@ -134,32 +119,7 @@ const handleSelectContact = async (contact) => {
     handleSelectContact(contactWithChat);
   };
 
-  const handleAcceptRequest = async (req) => {
-    try {
-      const chatId = await acceptContactRequest(user.uid, req.fromUid);
-      const newContact = { ...req.profile, id: req.fromUid, chatId, lastMessage: null };
-      setContacts((prev) => {
-        const exists = prev.find((c) => c.id === req.fromUid);
-        if (exists) return prev;
-        return [newContact, ...prev];
-      });
-      setRequests((prev) => prev.filter((r) => r.id !== req.id));
-      toast.success(`${req.profile.displayName} added to contacts!`);
-    } catch (e) {
-      console.error("Accept request error:", e);
-      toast.error("Failed to accept request");
-    }
-  };
-
-  const handleDeclineRequest = async (req) => {
-    try {
-      await declineContactRequest(user.uid, req.fromUid);
-      setRequests((prev) => prev.filter((r) => r.id !== req.id));
-      toast.success("Request declined");
-    } catch (e) {
-      toast.error("Failed to decline request");
-    }
-  };
+ 
 
   const handleLogout = () => {
     signOut(auth)
@@ -215,50 +175,13 @@ const handleSelectContact = async (contact) => {
           </div>
         </div>
         <div className="chats-list">
-          {requests.length > 0 && (
-            <div style={{ borderBottom: "1px solid var(--border)" }}>
-              <div style={{ padding: "10px 20px 6px", fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1 }}>
-                Contact Requests ({requests.length})
-              </div>
-              {requests.map((req) => (
-                <div key={req.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", background: "var(--bg-card)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div className="chat-item-avatar" style={{ width: 38, height: 38, fontSize: 16, flexShrink: 0 }}>
-                      {req.profile?.photoURL ? (
-                        <img src={req.profile.photoURL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
-                      ) : "👤"}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{req.profile?.displayName}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{req.profile?.phoneNumber || req.profile?.email}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button
-                      onClick={() => handleAcceptRequest(req)}
-                      style={{ flex: 1, padding: "6px", background: "var(--accent)", border: "none", borderRadius: 6, color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      ✓ Accept
-                    </button>
-                    <button
-                      onClick={() => handleDeclineRequest(req)}
-                      style={{ flex: 1, padding: "6px", background: "transparent", border: "1px solid var(--border-light)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}
-                    >
-                      ✕ Decline
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {loading && (
             <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
               Loading chats...
             </div>
           )}
 
-          {!loading && filteredContacts.length === 0 && requests.length === 0 && (
+        {!loading && filteredContacts.length === 0 && (
             <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>👥</div>
               {searchQuery ? "No results" : "No contacts yet. Add someone!"}

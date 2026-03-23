@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import {
   collection, query, where, getDocs, addDoc, doc,
   setDoc, getDoc, updateDoc, serverTimestamp, orderBy,
-  onSnapshot, arrayUnion, arrayRemove, deleteDoc,
+  onSnapshot, arrayUnion, arrayRemove,
 } from "firebase/firestore";
 export async function getOrCreateChat(uid1, uid2) {
   const ids = [uid1, uid2].sort();
@@ -49,8 +49,8 @@ export async function findUserByEmail(email) {
   return { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
 export async function addContact(myUid, theirUid) {
-  const contactRef = doc(db, "users", myUid, "contacts", theirUid);
-  await setDoc(contactRef, { uid: theirUid, addedAt: serverTimestamp() });
+  await setDoc(doc(db, "users", myUid, "contacts", theirUid), { uid: theirUid, addedAt: serverTimestamp() });
+  await setDoc(doc(db, "users", theirUid, "contacts", myUid), { uid: myUid, addedAt: serverTimestamp() });
   return getOrCreateChat(myUid, theirUid);
 }
 export async function getUserContacts(uid) {
@@ -89,24 +89,7 @@ export async function setUserOnline(uid, online) {
     console.warn("setUserOnline failed:", e.message);
   }
 }
-export async function sendContactRequest(fromUid, toUid) {
-  const requestRef = doc(db, "users", toUid, "requests", fromUid);
-  await setDoc(requestRef, {
-    fromUid,
-    status: "pending",
-    createdAt: serverTimestamp(),
-  });
-}
-export async function acceptContactRequest(myUid, fromUid) {
 
-  await setDoc(doc(db, "users", myUid, "contacts", fromUid), { uid: fromUid, addedAt: serverTimestamp() });
-  await setDoc(doc(db, "users", fromUid, "contacts", myUid), { uid: myUid, addedAt: serverTimestamp() });
-  await deleteDoc(doc(db, "users", myUid, "requests", fromUid));
-  return getOrCreateChat(myUid, fromUid);
-}
-export async function declineContactRequest(myUid, fromUid) {
-  await deleteDoc(doc(db, "users", myUid, "requests", fromUid));
-}
 export async function setTyping(chatId, uid, isTyping) {
   try {
     await setDoc(doc(db, "chats", chatId, "typing", uid), {
