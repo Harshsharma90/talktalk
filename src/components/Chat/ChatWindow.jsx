@@ -23,11 +23,11 @@ const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!chatId) return;
-    const q = query(
-      collection(db, "chats", chatId, "messages"),
-      orderBy("createdAt", "asc"),
-      limit(200)
-    );
+   const q = query(
+  collection(db, "chats", chatId, "messages"),
+  orderBy("createdAt", "asc"),
+  limit(50)
+);
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
@@ -57,15 +57,25 @@ const handleSend = async () => {
   const trimmed = text.trim();
   if (!trimmed || !chatId) return;
   setText("");
-  setSending(true);
   setTyping(chatId, user.uid, false);
   if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  const tempMsg = {
+    id: `temp_${Date.now()}`,
+    senderId: user.uid,
+    text: trimmed,
+    createdAt: { toDate: () => new Date() },
+    readBy: [user.uid],
+    temp: true,
+  };
+  setMessages((prev) => [...prev, tempMsg]);
+
   try {
     await sendMessage(chatId, user.uid, trimmed);
   } catch (e) {
     console.error("Send message error:", e);
+    // Remove temp message on failure
+    setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
   } finally {
-    setSending(false);
     inputRef.current?.focus();
   }
 };
@@ -132,10 +142,10 @@ const handleKey = (e) => {
                 <div className="msg-time">
                   {formatTime(msg.createdAt)}
                   {isOut && (
-                    <span className={`msg-tick ${msg.readBy?.length > 1 ? "read" : ""}`}>
-                      {msg.readBy?.length > 1 ? "✓✓" : "✓"}
-                    </span>
-                  )}
+  <span className={`msg-tick ${msg.readBy?.length > 1 ? "read" : ""}`}>
+    {msg.temp ? "🕐" : msg.readBy?.length > 1 ? "✓✓" : "✓"}
+  </span>
+)}
                 </div>
               </div>
             </div>

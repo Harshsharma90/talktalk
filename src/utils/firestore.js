@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import {
   collection, query, where, getDocs, addDoc, doc,
   setDoc, getDoc, updateDoc, serverTimestamp, orderBy,
-  onSnapshot, arrayUnion, arrayRemove,
+  onSnapshot, arrayUnion, arrayRemove, writeBatch,
 } from "firebase/firestore";
 export async function getOrCreateChat(uid1, uid2) {
   const ids = [uid1, uid2].sort();
@@ -21,17 +21,23 @@ export async function getOrCreateChat(uid1, uid2) {
   return chatId;
 }
 export async function sendMessage(chatId, senderId, text) {
-  const msgRef = collection(db, "chats", chatId, "messages");
-  await addDoc(msgRef, {
+  const batch = writeBatch(db);
+  
+  const msgRef = doc(collection(db, "chats", chatId, "messages"));
+  batch.set(msgRef, {
     senderId,
     text,
     createdAt: serverTimestamp(),
     readBy: [senderId],
   });
-  await updateDoc(doc(db, "chats", chatId), {
+
+  const chatRef = doc(db, "chats", chatId);
+  batch.update(chatRef, {
     lastMessage: text,
     lastMessageTime: serverTimestamp(),
   });
+
+  await batch.commit();
 }
 export async function findUserByPhone(phone) {
   const normalized = phone.startsWith("+") ? phone.trim() : `+91${phone.trim()}`;
