@@ -21,22 +21,20 @@ export async function getOrCreateChat(uid1, uid2) {
   return chatId;
 }
 export async function sendMessage(chatId, senderId, text) {
-  const batch = writeBatch(db);
-  
+  const now = new Date();
   const msgRef = doc(collection(db, "chats", chatId, "messages"));
+  
+  const batch = writeBatch(db);
   batch.set(msgRef, {
     senderId,
     text,
-    createdAt: serverTimestamp(),
+    createdAt: now,
     readBy: [senderId],
   });
-
-  const chatRef = doc(db, "chats", chatId);
-  batch.update(chatRef, {
+  batch.update(doc(db, "chats", chatId), {
     lastMessage: text,
-    lastMessageTime: serverTimestamp(),
+    lastMessageTime: now,
   });
-
   await batch.commit();
 }
 export async function findUserByPhone(phone) {

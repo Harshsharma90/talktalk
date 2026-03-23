@@ -23,10 +23,10 @@ const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!chatId) return;
-   const q = query(
+  const q = query(
   collection(db, "chats", chatId, "messages"),
   orderBy("createdAt", "asc"),
-  limit(50)
+  limit(100)
 );
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
@@ -100,11 +100,13 @@ const handleKey = (e) => {
     inputRef.current?.focus();
   };
 
-  const formatTime = (ts) => {
-    if (!ts) return "";
-    const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return format(date, "h:mm a");
-  };
+ const formatTime = (ts) => {
+  if (!ts) return "";
+  if (ts instanceof Date) return format(ts, "h:mm a");
+  if (ts.toDate) return format(ts.toDate(), "h:mm a");
+  if (ts.seconds) return format(new Date(ts.seconds * 1000), "h:mm a");
+  return format(new Date(ts), "h:mm a");
+};
 
   const getDateLabel = (ts) => {
     if (!ts) return "";
