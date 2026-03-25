@@ -1,7 +1,9 @@
 // src/components/Dashboard/AddContactModal.jsx
 import { useState } from "react";
-import { findUserByPhone, findUserByEmail, addContact,sendSystemMessage } from "../../utils/firestore";
+import { findUserByPhone, findUserByEmail, addContact } from "../../utils/firestore";
 import { useAuth } from "../../context/AuthContext";
+import { db } from "../../firebase";
+import { doc, getDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 
 export default function AddContactModal({ onClose, onAdded }) {
@@ -44,6 +46,15 @@ const handleAdd = async () => {
   setAdding(true);
   try {
     const theirUid = result.uid || result.id;
+    
+    // Check if already a contact
+    const contactSnap = await getDoc(doc(db, "users", user.uid, "contacts", theirUid));
+    if (contactSnap.exists()) {
+      toast.error(`${result.displayName} is already in your contacts!`);
+      setAdding(false);
+      return;
+    }
+
     const chatId = await addContact(user.uid, theirUid);
     const contactData = { ...result, uid: theirUid, id: theirUid };
     toast.success(`${result.displayName} added!`);

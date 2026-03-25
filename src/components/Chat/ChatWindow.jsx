@@ -4,7 +4,7 @@ import { db } from "../../firebase";
 import {
   collection, query, orderBy, onSnapshot, limit, doc,
 } from "firebase/firestore";
-import { sendMessage,setTyping } from "../../utils/firestore";
+import { sendMessage, setTyping, markMessagesRead, markChatAsRead } from "../../utils/firestore";
 import { useAuth } from "../../context/AuthContext";
 import { format, isToday, isYesterday, isSameDay } from "date-fns";
 import EmojiPicker from "emoji-picker-react";
@@ -21,18 +21,20 @@ const typingTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (!chatId) return;
+useEffect(() => {
+  if (!chatId) return;
   const q = query(
-  collection(db, "chats", chatId, "messages"),
-  orderBy("createdAt", "asc"),
-  limit(100)
-);
-    const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return unsub;
-  }, [chatId]);
+    collection(db, "chats", chatId, "messages"),
+    orderBy("createdAt", "asc"),
+    limit(100)
+  );
+  const unsub = onSnapshot(q, (snap) => {
+    setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    markMessagesRead(chatId, user.uid);
+    markChatAsRead(chatId, user.uid);
+  });
+  return unsub;
+}, [chatId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,7 +72,7 @@ const handleSend = async () => {
   setMessages((prev) => [...prev, tempMsg]);
 
   try {
-    await sendMessage(chatId, user.uid, trimmed);
+   await sendMessage(chatId, user.uid, contact.uid, trimmed);
   } catch (e) {
     console.error("Send message error:", e);
     // Remove temp message on failure

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { signOut } from "firebase/auth";
-import { setUserOnline } from "../../utils/firestore";
+import { setUserOnline,markChatAsRead  } from "../../utils/firestore";
 import { collection, onSnapshot, doc, getDoc,} from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import { format, isToday } from "date-fns";
@@ -30,21 +30,29 @@ export default function Dashboard() {
   }, []);
 
   
-  useEffect(() => {
-    const unsubs = contacts.map((c) => {
-      return onSnapshot(doc(db, "users", c.id), (snap) => {
-        if (snap.exists()) {
-          setContacts((prev) =>
-            prev.map((p) => (p.id === c.id ? { ...p, ...snap.data() } : p))
-          );
-          if (activeContact?.id === c.id) {
-            setActiveContact((prev) => ({ ...prev, ...snap.data() }));
-          }
-        }
-      });
+ useEffect(() => {
+  const unsubs = contacts.map((c) => {
+    if (!c.chatId) return () => {};
+    return onSnapshot(doc(db, "chats", c.chatId), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setContacts((prev) =>
+          prev.map((p) =>
+            p.chatId === c.chatId
+              ? {
+                  ...p,
+                  lastMessage: data.lastMessage,
+                  lastMessageTime: data.lastMessageTime,
+                  unreadCount: data[`unread_${user.uid}`] || 0,
+                }
+              : p
+          )
+        );
+      }
     });
-    return () => unsubs.forEach((u) => u());
-  }, [contacts.length]);
+  });
+  return () => unsubs.forEach((u) => u());
+}, [contacts.length]);
 
   // Listen for chat last message updates
   useEffect(() => {
@@ -77,16 +85,18 @@ useEffect(() => {
         if (userSnap.exists()) {
           const chatId = [user.uid, d.id].sort().join("_");
           const chatSnap = await getDoc(doc(db, "chats", chatId));
+          const chatData = chatSnap.exists() ? chatSnap.data() : {};
           updatedContacts.push({
             ...userSnap.data(),
             id: d.id,
             chatId,
-            lastMessage: chatSnap.exists() ? chatSnap.data().lastMessage : null,
-            lastMessageTime: chatSnap.exists() ? chatSnap.data().lastMessageTime : null,
+            lastMessage: chatData.lastMessage || null,
+            lastMessageTime: chatData.lastMessageTime || null,
+            unreadCount: chatData[`unread_${user.uid}`] || 0,
           });
         }
       }
-     updatedContacts.sort((a, b) => {
+      updatedContacts.sort((a, b) => {
         const aTime = a.lastMessageTime?.toMillis?.() || 0;
         const bTime = b.lastMessageTime?.toMillis?.() || 0;
         return bTime - aTime;
@@ -107,6 +117,13 @@ const handleSelectContact = async (contact) => {
   setShowProfile(false);
   const chatArea = document.querySelector(".chat-area");
   if (chatArea) chatArea.classList.add("mobile-open");
+  // Reset unread count
+  if (contact.chatId) {
+    markChatAsRead(contact.chatId, user.uid);
+    setContacts((prev) =>
+      prev.map((c) => c.id === contact.id ? { ...c, unreadCount: 0 } : c)
+    );
+  }
 };
 
 const handleContactAdded = (newContact, chatId) => {
@@ -214,11 +231,14 @@ const handleContactAdded = (newContact, chatId) => {
                   {contact.lastMessage || contact.status || "Start chatting..."}
                 </div>
               </div>
-              <div className="chat-item-meta">
-                <div className="chat-item-time">
-                  {formatTime(contact.lastMessageTime)}
-                </div>
-              </div>
+             <div className="chat-item-meta">
+  <div className="chat-item-time">
+    {formatTime(contact.lastMessageTime)}
+  </div>
+  {contact.unreadCount > 0 && activeChatId !== contact.chatId && (
+    <div className="badge">{contact.unreadCount > 99 ? "99+" : contact.unreadCount}</div>
+  )}
+</div>
             </div>
           ))}
 

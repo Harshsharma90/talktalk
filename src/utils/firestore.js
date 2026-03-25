@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import {
   collection, query, where, getDocs, addDoc, doc,
   setDoc, getDoc, updateDoc, serverTimestamp, orderBy,
-  onSnapshot, arrayUnion, arrayRemove, writeBatch,
+  onSnapshot, arrayUnion, arrayRemove, writeBatch,increment,
 } from "firebase/firestore";
 export async function getOrCreateChat(uid1, uid2) {
   const ids = [uid1, uid2].sort();
@@ -20,10 +20,9 @@ export async function getOrCreateChat(uid1, uid2) {
   }
   return chatId;
 }
-export async function sendMessage(chatId, senderId, text) {
+export async function sendMessage(chatId, senderId, receiverId, text) {
   const now = new Date();
   const msgRef = doc(collection(db, "chats", chatId, "messages"));
-  
   const batch = writeBatch(db);
   batch.set(msgRef, {
     senderId,
@@ -34,6 +33,7 @@ export async function sendMessage(chatId, senderId, text) {
   batch.update(doc(db, "chats", chatId), {
     lastMessage: text,
     lastMessageTime: now,
+    [`unread_${receiverId}`]: increment(1),
   });
   await batch.commit();
 }
@@ -101,5 +101,34 @@ export async function setTyping(chatId, uid, isTyping) {
     }, { merge: true });
   } catch (e) {
     console.warn("setTyping failed:", e);
+  }
+}
+export async function markChatAsRead(chatId, uid) {
+  try {
+    await updateDoc(doc(db, "chats", chatId), {
+      [`unread_${uid}`]: 0,
+    });
+  } catch (e) {
+    console.warn("markChatAsRead failed:", e);
+  }
+}
+
+export async function markMessagesRead(chatId, uid) {
+  try {
+    const q = query(
+      collection(db, "chats", chatId, "messages"),
+      orderBy("createdAt", "asc"),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => {
+      if (!d.data().readBy?.includes(uid)) {
+        batch.update(d.ref, { readBy: arrayUnion(uid) });
+      }
+    });
+    await batch.commit();
+  } catch (e) {
+    console.warn("markMessagesRead failed:", e);
   }
 }
