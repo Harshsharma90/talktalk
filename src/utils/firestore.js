@@ -1,9 +1,8 @@
-
 import { db } from "../firebase";
 import {
   collection, query, where, getDocs, addDoc, doc,
   setDoc, getDoc, updateDoc, serverTimestamp, orderBy,
-  onSnapshot, arrayUnion, arrayRemove, writeBatch, increment,
+  onSnapshot, arrayUnion, arrayRemove, writeBatch, increment, limit,
 } from "firebase/firestore";
 export async function getOrCreateChat(uid1, uid2) {
   const ids = [uid1, uid2].sort();
@@ -25,7 +24,6 @@ export async function sendMessage(chatId, senderId, receiverId, text) {
   const msgRef = doc(collection(db, "chats", chatId, "messages"));
   const chatRef = doc(db, "chats", chatId);
 
-  // First add the message
   await setDoc(msgRef, {
     senderId,
     text,
@@ -33,7 +31,6 @@ export async function sendMessage(chatId, senderId, receiverId, text) {
     readBy: [senderId],
   });
 
-  // Then update chat separately with increment
   await updateDoc(chatRef, {
     lastMessage: text,
     lastMessageTime: now,
@@ -117,12 +114,9 @@ export async function markChatAsRead(chatId, uid) {
 
 export async function markMessagesRead(chatId, uid) {
   try {
-    const q = query(
-      collection(db, "chats", chatId, "messages"),
-      orderBy("createdAt", "asc"),
-      limit(50)
+    const snap = await getDocs(
+      query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "asc"))
     );
-    const snap = await getDocs(q);
     const batch = writeBatch(db);
     snap.docs.forEach((d) => {
       if (!d.data().readBy?.includes(uid)) {
