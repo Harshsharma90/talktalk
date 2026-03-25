@@ -72,8 +72,10 @@ const handleSend = async () => {
   setMessages((prev) => [...prev, tempMsg]);
 
   try {
-   await sendMessage(chatId, user.uid, contact.uid, trimmed);
-  } catch (e) {
+const receiverId = contact.uid || contact.id;
+console.log("Sending to:", receiverId, "chatId:", chatId);
+await sendMessage(chatId, user.uid, receiverId, trimmed);
+ } catch (e) {
     console.error("Send message error:", e);
     // Remove temp message on failure
     setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
