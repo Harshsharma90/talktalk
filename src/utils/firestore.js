@@ -86,8 +86,7 @@ export async function sendSystemMessage(chatId, text) {
     readBy: [],
   });
 }
-export async function markMessagesRead(chatId, uid) {
-}
+
 export async function setUserOnline(uid, online) {
    try {
     await setDoc(doc(db, "users", uid), { online, lastSeen: serverTimestamp() }, { merge: true });
