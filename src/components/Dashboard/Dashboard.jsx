@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { format, isToday } from "date-fns";
 import ChatWindow from "../Chat/ChatWindow";
 import AddContactModal from "./AddContactModal";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [showProfile, setShowProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
  
   useEffect(() => {
     setUserOnline(user.uid, true);
@@ -283,8 +285,15 @@ const handleContactAdded = (newContact, chatId) => {
                 <img src={userProfile.photoURL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
               ) : "👤"}
             </div>
-            <div className="profile-name">{userProfile?.displayName}</div>
-            <div className="profile-status">{userProfile?.status}</div>
+           <div className="profile-name">{userProfile?.displayName}</div>
+<div className="profile-status">{userProfile?.status}</div>
+<button
+  className="btn"
+  style={{ width: "auto", padding: "8px 20px", marginTop: 4 }}
+  onClick={() => navigate("/setup")}
+>
+  ✏️ Edit Profile
+</button>
             {userProfile?.phoneNumber && (
               <div className="profile-info-row" style={{ width: "100%" }}>
                 <span>📱</span>
