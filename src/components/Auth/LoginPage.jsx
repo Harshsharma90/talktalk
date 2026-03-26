@@ -1,5 +1,5 @@
 // src/components/Auth/LoginPage.jsx
-import { useState, useRef } from "react";
+import { useState, useRef,useEffect  } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
 import {
@@ -22,38 +22,59 @@ export default function LoginPage() {
   const [resetMode, setResetMode] = useState(false);
 const [resetEmail, setResetEmail] = useState("");
 const [resetLoading, setResetLoading] = useState(false);
+
   const navigate = useNavigate();
-  const recaptchaRef = useRef(null);
+const recaptchaRef = useRef(null);
+
+useEffect(() => {
+  if (tab === "phone") {
+    setTimeout(() => setupRecaptcha(), 500);
+  }
+}, [tab]);
 
   const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-        callback: () => {},
-      });
-    }
-  };
+  if (window.recaptchaVerifier) {
+    window.recaptchaVerifier.clear();
+    window.recaptchaVerifier = null;
+  }
+  window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+    size: "normal",
+    callback: () => {
+      console.log("reCAPTCHA verified");
+    },
+    "expired-callback": () => {
+      toast.error("reCAPTCHA expired. Please try again.");
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
+    },
+  });
+  window.recaptchaVerifier.render();
+};
 
-  const handlePhoneSubmit = async (e) => {
-    e.preventDefault();
-    const fullPhone = `+91${phone.replace(/\D/g, "")}`;
-    if (fullPhone.length < 13) return toast.error("Enter a valid 10-digit number");
-    setLoading(true);
-    try {
-      setupRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier);
-      window.confirmationResult = confirmation;
-      navigate("/otp", { state: { phone: fullPhone } });
-    } catch (err) {
-      toast.error(err.message || "Failed to send OTP");
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
-    } finally {
-      setLoading(false);
+const handlePhoneSubmit = async (e) => {
+  e.preventDefault();
+  const fullPhone = `+91${phone.replace(/\D/g, "")}`;
+  if (fullPhone.length < 13) return toast.error("Enter a valid 10-digit number");
+  if (!window.recaptchaVerifier) {
+    return toast.error("Please complete the reCAPTCHA first");
+  }
+  setLoading(true);
+  try {
+    const confirmation = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier);
+    window.confirmationResult = confirmation;
+    navigate("/otp", { state: { phone: fullPhone } });
+  } catch (err) {
+    console.error("Phone auth error:", err);
+    toast.error(err.message || "Failed to send OTP");
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
     }
-  };
+    setupRecaptcha();
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
