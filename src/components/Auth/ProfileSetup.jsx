@@ -1,9 +1,9 @@
 // src/components/Auth/ProfileSetup.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, db, storage } from "../../firebase";
+import { auth, db } from "../../firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadImageToCloudinary } from "../../utils/cloudinary";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 
@@ -40,16 +40,14 @@ export default function ProfileSetup() {
     try {
       let photoURL = userProfile?.photoURL || null;
 
-      if (photo) {
-        try {
-          const storageRef = ref(storage, `avatars/${user.uid}`);
-          await uploadBytes(storageRef, photo);
-          photoURL = await getDownloadURL(storageRef);
-        } catch (uploadErr) {
-          console.error("Photo upload failed:", uploadErr);
-          toast.error("Photo upload failed, saving without photo");
-        }
-      }
+     if (photo) {
+  try {
+    photoURL = await uploadImageToCloudinary(photo);
+  } catch (uploadErr) {
+    console.error("Photo upload failed:", uploadErr);
+    toast.error("Photo upload failed, saving without photo");
+  }
+}
 
       const profile = {
         uid: user.uid,
