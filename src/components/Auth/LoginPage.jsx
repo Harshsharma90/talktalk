@@ -2,12 +2,14 @@
 import { useState, useRef,useEffect  } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
+import { signOut } from "firebase/auth";
 import {
   signInWithPhoneNumber,
   RecaptchaVerifier,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
@@ -82,16 +84,23 @@ const handlePhoneSubmit = async (e) => {
     setLoading(true);
     try {
       let userCredential;
-     if (isSignUp) {
+  if (isSignUp) {
   userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  await sendEmailVerification(userCredential.user);
+  toast.success("Verification email sent! Please check your inbox.");
   navigate("/setup");
   return;
-}else {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-      }
-      const uid = userCredential.user.uid;
-      const snap = await getDoc(doc(db, "users", uid));
-      if (!snap.exists()) navigate("/setup");
+} else {
+  userCredential = await signInWithEmailAndPassword(auth, email, password);
+  if (!userCredential.user.emailVerified) {
+    await signOut(auth);
+    toast.error("Please verify your email first. Check your inbox.");
+    return;
+  }
+}
+const uid = userCredential.user.uid;
+const snap = await getDoc(doc(db, "users", uid));
+if (!snap.exists()) navigate("/setup");
     } catch (err) {
      const msg = err.code === "auth/user-not-found" ? "This email is not registered. Please sign up first."
   : err.code === "auth/wrong-password" ? "Incorrect password. Please try again."
@@ -124,6 +133,25 @@ const handlePhoneSubmit = async (e) => {
     toast.error(msg);
   } finally {
     setResetLoading(false);
+  }
+};
+
+const handleResendVerification = async () => {
+  if (!email) return toast.error("Enter your email first");
+  setLoading(true);
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    if (!userCredential.user.emailVerified) {
+      await sendEmailVerification(userCredential.user);
+      await signOut(auth);
+      toast.success("Verification email resent! Check your inbox.");
+    } else {
+      toast.success("Your email is already verified. Please sign in.");
+    }
+  } catch (err) {
+    toast.error("Could not resend. Check your email and password.");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -214,17 +242,24 @@ const handlePhoneSubmit = async (e) => {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                {!isSignUp && (
-                  <div style={{ textAlign: "right", marginBottom: 12, marginTop: -8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setResetMode(true)}
-                      style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
+               {!isSignUp && (
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, marginTop: -8 }}>
+    <button
+      type="button"
+      onClick={handleResendVerification}
+      style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}
+    >
+      Resend verification
+    </button>
+    <button
+      type="button"
+      onClick={() => setResetMode(true)}
+      style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}
+    >
+      Forgot password?
+    </button>
+  </div>
+)}
                 <button type="submit" className="btn" disabled={loading}>
                   {loading ? <span className="spinner" /> : isSignUp ? "Create Account →" : "Sign In →"}
                 </button>
