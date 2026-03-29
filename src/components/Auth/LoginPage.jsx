@@ -9,7 +9,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
@@ -84,19 +83,12 @@ const handlePhoneSubmit = async (e) => {
     setLoading(true);
     try {
       let userCredential;
-  if (isSignUp) {
+ if (isSignUp) {
   userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  await sendEmailVerification(userCredential.user);
-  toast.success("Verification email sent! Please check your inbox.");
   navigate("/setup");
   return;
 } else {
   userCredential = await signInWithEmailAndPassword(auth, email, password);
-  if (!userCredential.user.emailVerified) {
-    await signOut(auth);
-    toast.error("Please verify your email first. Check your inbox.");
-    return;
-  }
 }
 const uid = userCredential.user.uid;
 const snap = await getDoc(doc(db, "users", uid));
@@ -242,15 +234,8 @@ const handleResendVerification = async () => {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-               {!isSignUp && (
-  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, marginTop: -8 }}>
-    <button
-      type="button"
-      onClick={handleResendVerification}
-      style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}
-    >
-      Resend verification
-    </button>
+           {!isSignUp && (
+  <div style={{ textAlign: "right", marginBottom: 12, marginTop: -8 }}>
     <button
       type="button"
       onClick={() => setResetMode(true)}
