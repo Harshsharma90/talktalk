@@ -33,23 +33,15 @@ useEffect(() => {
   }
 }, [tab]);
 
-  const setupRecaptcha = () => {
+const setupRecaptcha = () => {
   if (window.recaptchaVerifier) {
     window.recaptchaVerifier.clear();
     window.recaptchaVerifier = null;
   }
   window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-    size: "normal",
-    callback: () => {
-      console.log("reCAPTCHA verified");
-    },
-    "expired-callback": () => {
-      toast.error("reCAPTCHA expired. Please try again.");
-      window.recaptchaVerifier.clear();
-      window.recaptchaVerifier = null;
-    },
+    size: "invisible",
+    callback: () => {},
   });
-  window.recaptchaVerifier.render();
 };
 
 const handlePhoneSubmit = async (e) => {
