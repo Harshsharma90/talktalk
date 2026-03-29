@@ -151,7 +151,7 @@ const handleResendVerification = async () => {
     <div className="auth-root">
       <div className="auth-card">
         <div className="auth-icon">💬</div>
-        <h1 className="auth-title">Welcome to ChatApp</h1>
+        <h1 className="auth-title">Welcome to ChatApp chote</h1>
         <p className="auth-subtitle">Connect with friends instantly</p>
 
         <div className="tab-group">
