@@ -5,7 +5,7 @@ import LoginPage from "./components/Auth/LoginPage";
 import OtpPage from "./components/Auth/OtpPage";
 import ProfileSetup from "./components/Auth/ProfileSetup";
 import Dashboard from "./components/Dashboard/Dashboard";
-
+import ActionHandler from "./components/Auth/ActionHandler";
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="splash"><div className="splash-logo">💬</div></div>;
@@ -27,6 +27,7 @@ export default function App() {
         <Route path="/setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/auth/action" element={<ActionHandler />} />
       </Routes>
     </BrowserRouter>
   );
