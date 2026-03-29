@@ -102,9 +102,9 @@ const uid = userCredential.user.uid;
 const snap = await getDoc(doc(db, "users", uid));
 if (!snap.exists()) navigate("/setup");
     } catch (err) {
-     const msg = err.code === "auth/user-not-found" ? "This email is not registered. Please sign up first."
+    const msg = err.code === "auth/user-not-found" ? "This email is not registered. Please sign up first."
   : err.code === "auth/wrong-password" ? "Incorrect password. Please try again."
-  : err.code === "auth/invalid-credential" ? "This email is not registered. Please sign up first."
+  : err.code === "auth/invalid-credential" ? "Incorrect password. Please try again."
   : err.code === "auth/email-already-in-use" ? "This email is already registered. Please sign in instead."
   : err.code === "auth/invalid-email" ? "Please enter a valid email address."
   : err.code === "auth/too-many-requests" ? "Too many attempts. Please try again later."
