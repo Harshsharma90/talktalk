@@ -83,7 +83,10 @@ if (!snap.exists()) navigate("/setup");
   if (!resetEmail.trim()) return toast.error("Enter your email address");
   setResetLoading(true);
   try {
-    await sendPasswordResetEmail(auth, resetEmail.trim().toLowerCase());
+    await sendPasswordResetEmail(auth, resetEmail.trim().toLowerCase(), {
+  url: "https://batcheed2.vercel.app/login",
+  handleCodeInApp: false,
+});
     toast.success("Password reset email sent! Check your inbox.");
     setResetMode(false);
     setResetEmail("");
