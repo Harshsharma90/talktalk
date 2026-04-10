@@ -9,7 +9,7 @@ import { format, isToday } from "date-fns";
 import ChatWindow from "../Chat/ChatWindow";
 import AddContactModal from "./AddContactModal";
 import { useNavigate } from "react-router-dom";
-
+import { requestNotificationPermission, onForegroundMessage } from "../../utils/notifications";
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
