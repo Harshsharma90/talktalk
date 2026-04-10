@@ -9,6 +9,7 @@ import { format, isToday } from "date-fns";
 import ChatWindow from "../Chat/ChatWindow";
 import AddContactModal from "./AddContactModal";
 import { useNavigate } from "react-router-dom";
+import { requestNotificationPermission, onForegroundMessage } from "../utils/notifications";
 
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
@@ -23,6 +24,7 @@ export default function Dashboard() {
  
   useEffect(() => {
     setUserOnline(user.uid, true);
+     requestNotificationPermission(user.uid);
     const handleVisibility = () => setUserOnline(user.uid, !document.hidden);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
@@ -30,6 +32,16 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
+
+  useEffect(() => {
+  const unsub = onForegroundMessage((payload) => {
+    toast(`💬 ${payload.notification.title}: ${payload.notification.body}`, {
+      duration: 4000,
+      icon: "🔔",
+    });
+  });
+  return unsub;
+}, []);
 
   
  useEffect(() => {

@@ -31,11 +31,19 @@ export async function sendMessage(chatId, senderId, receiverId, text) {
     readBy: [senderId],
   });
 
-  await updateDoc(chatRef, {
+  await setDoc(chatRef, {
     lastMessage: text,
     lastMessageTime: now,
     [`unread_${receiverId}`]: increment(1),
-  });
+    participants: [senderId, receiverId].sort(),
+  }, { merge: true });
+
+  // Get sender name and send push notification
+  const senderSnap = await getDoc(doc(db, "users", senderId));
+  if (senderSnap.exists()) {
+    const senderName = senderSnap.data().displayName;
+    await sendPushNotification(receiverId, senderName, text);
+  }
 }
 export async function findUserByPhone(phone) {
   const normalized = phone.startsWith("+") ? phone.trim() : `+91${phone.trim()}`;
@@ -126,5 +134,25 @@ export async function markMessagesRead(chatId, uid) {
     await batch.commit();
   } catch (e) {
     console.warn("markMessagesRead failed:", e);
+  }
+}
+
+export async function sendPushNotification(receiverUid, senderName, message) {
+  try {
+    const receiverSnap = await getDoc(doc(db, "users", receiverUid));
+    if (!receiverSnap.exists()) return;
+    
+    const fcmToken = receiverSnap.data().fcmToken;
+    if (!fcmToken) return;
+
+    // Save notification to Firestore — Cloud Function will pick it up
+    await addDoc(collection(db, "notifications"), {
+      token: fcmToken,
+      title: senderName,
+      body: message,
+      createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn("Push notification failed:", e);
   }
 }
